@@ -2,7 +2,7 @@ Built with: Mac OS X 10.10 Yosemite
 Written in: Python 2.7.6
 
 
-### This tiny program takes 3 (three) parameterr:
+### This tiny program takes 3 (three) parameters:
 
 1º - the scheduling algorithm (String: required)
   choose one of:
