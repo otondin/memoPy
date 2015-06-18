@@ -1,43 +1,22 @@
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# import sys
+import sys
 import time
 import random
 
-MAX_PROCESS_LIMIT = 999
+SCHEDULING_ALGORITHMS = (
+    ('first-fit', 'First-fit'),
+    ('circular-fit', 'Circular-fit'),
+    ('bert-fit', 'Best-fit'),
+    ('worst-fit', 'Worst-fit'),
+)
 
-HARD_DRIVE_IO_TIME_MIN = 200
-
-HARD_DRIVE_IO_TIME_MAX = 300
-
-VIDEO_DRIVE_IO_TIME_MIN = 100
-
-VIDEO_DRIVE_IO_TIME_MAX = 200
-
-PRINTER_DRIVE_IO_TIME_MIN = 50
-
-PRINTER_DRIVE_IO_TIME_MAX = 600
-
-PROCESS_LOOP_MIN = 100
-
-PROCESS_LOOP_MAX = 300
-
-PROCESS_ALLOC_TIME_MAX = 50
-
-IO_DEVICES = {
-    0: 'hd',
-    1: 'video',
-    2: 'printer'
-}
-
-PROCESS_STATES = {
-    'blocked': 0,
-    'created': 1,
-    'destroyed': 2,
-    'ready': 3,
-    'running': 4
-}
+PROCESS_SIZE_MIN = 100  # in bytes
+PROCESS_SIZE_MAX = 1000  # in bytes
+PROCESS_EXEC_TIME_MIN = 1  # in seconds
+PROCESS_EXEC_TIME_MAX = 300  # in seconds
+MEMORY_SIZE = 5000  # in bytes
 
 
 class Process(object):
@@ -45,42 +24,37 @@ class Process(object):
     A process class created to be instanciated and used along the running simulation
     """
     pid = None
-    state = None
-    time_total = None
-    time_remaining = None
-    # time_running_loop = None
-    # time_current_status = None
-    # time_ioing = None
-    # running_time = None
-    # ready_time = None
-    # state_time_ready = None
-    # state_time_running = None
-    # state_time_blocked = None
-    # state_time_destroyed = None
+    size = None
+    execution_time = None
 
-    def set_state(self, state=None):
-        self.state = PROCESS_STATES[state]
-        return self
+    def get_pid(self):
+        return self.pid
 
-    def get_state(self):
-        return self.state
+    def get_size(self):
+        return self.size
 
 
 # Declarating basic control variables
-process_total = 999
-delay_time = 2
-clock_ping = 1
+scheduling = sys.argv[1]
+number_processes = sys.argv[2]
+
+delay_time = 0
+if len(sys.argv) == 4:
+    delay_time = float(sys.argv[3])
+
 
 # Declarating processes array list
 processes = []
+
 
 # Generating PID's to prevent repetition
 pid_deck = list(range(0, 1000))
 random.shuffle(pid_deck)
 
+
 # Processing time counter var declaration
 processing_time_zero = time.clock()  # Simulate started time
-processing_time_result = None  # Simulate result total time
+processing_time_result = 0  # Simulate result total time
 
 
 # Timing control
@@ -92,92 +66,63 @@ time_resulting = None
 time_starting = time.time()
 
 
-def still_process_to_run():
-    for p in processes:
-        if p.state != 'destroyed':
-            return True
+# Systema Memory Control
+system_memory = MEMORY_SIZE
+system_memory_used = 0
+system_memory_unused = MEMORY_SIZE
+memory_used_measure = None
+memory_unused_measure = None
 
-    return False
+
+# Clock Control
+clock = 0
 
 
-# Checking the process number typed by user. Needs to be from 5 to 999!
-if (process_total >= 5 and process_total <= 999):
-    while len(processes) < process_total:
-        """"
-        While the processes just created are minus than the process number typed by user
-        to simulate, do
-        """
+def manager_output(cicle, processes, memory_free):
+    sys.stdout.write('Clicle %d - Processes managed: %d - Memory Free %d \n' % (cicle, processes, system_memory))
+    sys.stdout.flush()
 
-        # Sorting rate is 20% to decide if a process will be created this time or not
-        create_process_sorting = random.randint(1, 5)  # Shorting range to make more time matching
 
-        # If you get lucky we're gonna create the process right now...
-        if create_process_sorting <= 1:
-            p = Process()
-            p.pid = pid_deck.pop()
-            p.set_state('created')
-            p.time_total = random.randint(100, 300)
-            processes.append(p)
-            print('CLOCK: a new process was just created with PID: %d & STATE: %s & CLOCK TIME: %d' % (p.pid, p.state, p.time_total))
+# Memory Manager
+while len(processes) < int(number_processes):
+    clock = clock + 1
+    manager_output(clock, len(processes), system_memory)
 
-            # Sorting rate is 1% to process take some I/O resource
-            will_ioing = random.randint(1, 100)
+    # Creating rate is 20% to decide if a process will be created this time or not
+    create_process_rating = random.randint(1, 5)
 
-            if will_ioing == 1:
+    # If you get lucky we're gonna create the process right now...
+    if create_process_rating == 1:
+        p = Process()
+        p.pid = pid_deck.pop()
+        p.size = random.randint(PROCESS_SIZE_MIN, PROCESS_SIZE_MAX)
+        p.execution_time = random.randint(PROCESS_EXEC_TIME_MIN, PROCESS_EXEC_TIME_MAX)
 
-                # Setting process state to running and get ready to make I/O access
-                p.set_state('running')
-                print('I/O ALERT: The process with PID %d is gonna make an I/O access... Now state is: %s' % (p.pid, p.state))
-
-                # Sorting what is gonna be the I/O resource to access
-                io_dev = random.randint(0, 2)
-
-                # Getting HD resource
-                if io_dev == 0:
-                    io_dev_time = random.randint(HARD_DRIVE_IO_TIME_MAX, HARD_DRIVE_IO_TIME_MAX)
-                # Getting Vide resource
-                elif io_dev == 1:
-                    io_dev_time = random.randint(VIDEO_DRIVE_IO_TIME_MIN, VIDEO_DRIVE_IO_TIME_MAX)
-                # Getting printer resource
-                elif io_dev == 2:
-                    io_dev_time = random.randint(PRINTER_DRIVE_IO_TIME_MIN, PRINTER_DRIVE_IO_TIME_MAX)
-
-                p.time_total = p.time_total + io_dev_time
-                print('I/O ALERT: The process with PID %d is being access %s I/O resource and it will take %d' % (p.pid, IO_DEVICES[io_dev], io_dev_time))
-                time.sleep(p.time_total / 100)
-                print('PROCESS ALERT: The process with PID %d has finished to access I/O resource and is being destroyed after %d' % (p.pid, p.time_total))
-
-                # Destroying process before make I/O resource access
-                p.set_state = PROCESS_STATES['destroyed']
-            else:
-                # Setting remaining running loop time to the process
-                p.time_remaining = p.time_total - PROCESS_ALLOC_TIME_MAX
-
-                if p.time_remaining <= 0:
-                    # Destoying the state because is all done!
-                    p.set_state('destroyed')
-                    print('PROCESS ALERT: The process with PID %d is all done! Now state is: %s' % (p.pid, p.state))
-                else:
-                    # Setting ready state to the process
-                    p.set_state('ready')
-                    print('PROCESS ALERT: The process with PID %d does not make anyone I/O and has more %d to take running. Now state is: %s' % (p.pid, p.time_remaining, p.state))
+        if p.size > system_memory:
+            print("The system is out of memory right now to execute your process.")
         else:
-            print('CLOCK: None process was created this time...')
+            processes.append(p)
+            system_memory = system_memory - p.size
+            system_memory_used = system_memory_used + p.size
+            system_memory_unused = system_memory_unused + (system_memory - p.size)
+        print("The process with PID %d was created with size %d e and will take %d seconds to be executed." % (p.pid, p.size, p.execution_time))
 
-        # User friendly delay to enable better view of the screen informations
-        time.sleep(delay_time)
+        time.sleep(p.execution_time / 1000)
+        # system_memory = system_memory + p.size
 
-        # Calculating process time running
-        processing_time_result = processing_time_zero + time.clock()
+    # User friendly delay to enable better view of the screen informations
+    time.sleep(delay_time)
+
+    # Calculating process time running
+    processing_time_result = processing_time_zero + time.clock()
 
 
-else:
-    print('You need to type processs number between 5 and 999! Try again... ;-)')
+# Measuring memory usage
+memory_used_measure = system_memory_used / len(processes)
+memory_unused_measure = system_memory_unused / len(processes)
 
-# Calcutating real time app running
-time_ending = time.time()
-time_resulting = time_ending - time_starting
-
-print('Total started process: %d' % len(processes))
-print('All process were created and took %f of processing time. They all are ready to work!' % processing_time_result)
-print('The real time app running was %f' % time_resulting)
+# Endind the simulator and outputing some last informations to user
+print("Total processes managed: %d" % len(processes))
+print("Total clicles: %d" % clock)
+print("Measuse used memory each cicle: %.d" % memory_used_measure)
+print("Measuse unused memory each cicle: %.d" % memory_unused_measure)
